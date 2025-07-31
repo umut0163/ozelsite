@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Kalpli Şifreli Site & Sola Hizalı Şiir</title>
+<style>
+  /* 1. Kodun CSS'si aynen burada */
+  body {
+    margin: 0;
+    padding: 0;
+    background: #111;
+    color: white;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+  #loginBox {
+    background: #222;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px #e91e63aa;
+    z-index: 20;
+  }
+  input, button {
+    padding: 10px;
+    font-size: 18px;
+    border-radius: 5px;
+    border: none;
+  }
+  button {
+    background: #e91e63;
+    color: white;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background: #d81b60;
+  }
+  #hearts {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 10;
+  }
+  .heart {
+    position: absolute;
+    width: 100px; height: 100px;
+    cursor: pointer;
+    transform-origin: center center;
+  }
+  .love-text {
+    position: fixed;
+    color: #e91e63;
+    font-weight: bold;
+    font-size: 22px;
+    text-align: center;
+    pointer-events: none;
+    user-select: none;
+    z-index: 30;
+    text-shadow: 0 0 5px #b4164e, 0 0 10px #b4164e;
+    white-space: nowrap;
+    max-width: 180px;
+    transform: translate(-50%, -50%);
+    animation: fadeOutOpacity 2.5s forwards;
+  }
+  @keyframes fadeOutOpacity {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  #error {
+    color: #ff5555;
+    min-height: 20px;
+  }
+  #skipButton {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #e91e63;
+    border-radius: 25px;
+    padding: 10px 20px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 25;
+    box-shadow: 0 0 10px #e91e63aa;
+    display: none;
+  }
+  #skipButton:hover {
+    background: #d81b60;
+  }
+
+  /* Küçük kalp parçaları */
+  .heart-piece {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    opacity: 0.9;
+    transform-origin: center center;
+  }
+
+  /* --- 2. Kodun şiir ve kutular için CSS --- */
+
+  /* şiir kutusu başlangıçta gizli */
+  #container {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border: 5px solid #e91e63;
+    border-radius: 20px;
+    padding: 40px 60px;
+    max-width: 700px;
+    box-shadow: 0 0 20px #e91e63bb;
+    background: #222;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    font-size: 24px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    text-align: left;
+    min-height: 200px;
+    z-index: 30;
+  }
+
+  .corner-box {
+    visibility: hidden; /* gizli başlar */
+    position: fixed;
+    width: 150px;
+    height: 150px;
+    background: #e91e63;
+    border-radius: 20px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 80px;
+    color: white;
+    z-index: 40;
+    transition: transform 0.3s ease;
+  }
+  .corner-box:hover {
+    transform: scale(1.1);
+  }
+
+  .confetti {
+    position: fixed;
+    font-size: 30px;
+    color: white;
+    opacity: 1;
+    pointer-events: none;
+    animation: explode 800ms forwards ease-out;
+    z-index: 90;
+  }
+  @keyframes explode {
+    0% { opacity: 1; transform: translate(0,0) rotate(0deg); }
+    100% { opacity: 0; transform: translate(var(--x), var(--y)) rotate(720deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1. Kod Giriş -->
+<div id="loginBox">
+  <h2>GİRİŞ YAP</h2>
+  <input type="password" id="password" placeholder="ŞİFRE...">
+  <button id="login">GİRİŞ</button>
+  <div id="error"></div>
+</div>
+
+<div id="hearts"></div>
+<button id="skipButton">GEÇ</button>
+
+<!-- 2. Kod Şiir ve Kutular -->
+<div id="container">
+  <div id="poem"></div>
+</div>
+
+<div id="box-topleft" class="corner-box">🎁</div>
+<div id="box-topright" class="corner-box">🎁</div>
+<div id="box-bottomleft" class="corner-box">🎁</div>
+<div id="box-bottomright" class="corner-box">🎁</div>
+
+<script>
+/* --- 1. Kodun JS --- */
+const PASSWORD = "0810";
+const loginBtn = document.getElementById("login");
+const passwordInput = document.getElementById("password");
+const loginBox = document.getElementById("loginBox");
+const hearts = document.getElementById("hearts");
+const error = document.getElementById("error");
+const skipButton = document.getElementById("skipButton");
+
+let clickCount = 0;
+let heartInterval = null;
+
+function createHeart() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "heart");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.style.left = Math.random() * (window.innerWidth - 100) + "px";
+  svg.style.top = "0px";
+
+  const path = document.createElementNS(ns, "path");
+  const fillColor = Math.random() < 0.5 ? "#ffffff" : "#e91e63";
+  path.setAttribute("fill", fillColor);
+  path.setAttribute("d", "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 \
+2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 \
+14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 \
+11.54L12 21.35z");
+  svg.appendChild(path);
+
+  svg.addEventListener("click", (e) => {
+    e.stopPropagation();
+    explodeHeart(svg);
+  });
+
+  return svg;
+}
+
+function createHeartPiece(x, y, color="#e91e63") {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "heart-piece");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.style.left = `${x}px`;
+  svg.style.top = `${y}px`;
+  svg.style.position = "absolute";
+  svg.style.width = "20px";
+  svg.style.height = "20px";
+  svg.style.pointerEvents = "none";
+
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("fill", color);
+  path.setAttribute("d", "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 \
+2 5.42 4.42 3 7.5 3c1.74 0 3.41 0.81 4.5 2.09C13.09 3.81 \
+14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 \
+11.54L12 21.35z");
+
+  svg.appendChild(path);
+  return svg;
+}
+
+function explodeHeart(heart) {
+  if (heart.dataset.exploding) return;
+  heart.dataset.exploding = "true";
+
+  const oldText = document.querySelector(".love-text");
+  if (oldText) oldText.remove();
+
+  let message = "";
+  switch(clickCount) {
+    case 0: message = "SENİ SEVİYORUM ❤️"; break;
+    case 1: message = "SENİ ÇOK SEVİYORUM ❤️❤️"; break;
+    case 2: message = "SENİ ÇOK ÇOK SEVİYORUM ❤️❤️❤️"; break;
+    case 3: message = "BİRTANEMM"; break;
+    case 4: message = "SEVGİLİMM"; break;
+    case 5: message = "HAYATIMIN ANLAMI"; break;
+    case 6: message = "GÜZELLER GÜZELİ AŞKIM"; break;
+    case 7: message = "DOĞUM GÜNÜN KUTLU OLSUN 🎉"; break;
+    case 8: message = "NİCE BERABER SENELERE 🎂"; break;
+    case 9: message = "SENİNLE HEP MUTLU HUZURLU OLALIM BİRTANEM BENİM"; break;
+    default: message = "GÜZELLER GÜZELİ AŞKIM";
+  }
+  clickCount++;
+  if (clickCount > 9) clickCount = 0;
+
+  const rect = heart.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + window.scrollY + rect.height / 2;
+
+  const loveText = document.createElement("div");
+  loveText.classList.add("love-text");
+  loveText.textContent = message;
+  loveText.style.left = `${centerX}px`;
+  loveText.style.top = `${centerY}px`;
+  document.body.appendChild(loveText);
+
+  heart.remove();
+
+  const pieces = [];
+  const pieceCount = 6;
+  const colors = ["#e91e63", "#ffffff"];
+
+  for(let i=0; i < pieceCount; i++){
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const piece = createHeartPiece(centerX - 10, centerY - 10, color);
+    document.body.appendChild(piece);
+    pieces.push(piece);
+  }
+
+  pieces.forEach((piece, i) => {
+    const angle = (360 / pieceCount) * i;
+    const rad = angle * (Math.PI / 180);
+    const distance = 60;
+    const dx = Math.cos(rad) * distance;
+    const dy = Math.sin(rad) * distance;
+
+    piece.animate([
+      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+      { transform: `translate(${dx}px, ${dy}px) scale(1.2)`, opacity: 1 }
+    ], {
+      duration: 300,
+      fill: 'forwards',
+      easing: 'ease-out'
+    });
+
+    setTimeout(() => {
+      piece.animate([
+        { transform: `translate(${dx}px, ${dy}px) scale(1.2)`, opacity: 1 },
+        { transform: 'translate(0, 120px) scale(0.5)', opacity: 0 }
+      ], {
+        duration: 1000,
+        fill: 'forwards',
+        easing: 'ease-in'
+      });
+
+      setTimeout(() => {
+        piece.remove();
+      }, 1100);
+    }, 300);
+  });
+
+  setTimeout(() => {
+    loveText.remove();
+  }, 2500);
+}
+
+function startHearts() {
+  hearts.style.display = "block";
+  heartInterval = setInterval(() => {
+    const heart = createHeart();
+    hearts.appendChild(heart);
+    heart.animate([
+      { transform: 'translateY(0) scale(1)', opacity: 0.9 },
+      { transform: 'translateY(100vh) scale(1.2)', opacity: 0 }
+    ], {
+      duration: 10000,
+      easing: 'linear',
+      fill: 'forwards'
+    });
+    setTimeout(() => heart.remove(), 10000);
+  }, 200);
+  skipButton.style.display = "block";
+}
+
+function stopHearts() {
+  if (heartInterval) clearInterval(heartInterval);
+  hearts.style.display = "none";
+  skipButton.style.display = "none";
+}
+
+/* --- 2. Kodun JS (şiir ve kutular) --- */
+
+const poemText = `Bahar gibi geldin, gönlümü açtın,
+Ellerim ellerinde huzuru tattım.
+Dertlerim bitti senle tanışınca,
+Rüyalar gerçek oldu aşkınla.
+İçimde sevdanla coşuyor her an,
+Yalnızlık kalmadı, sen varsın yanımda.
+En güzel şarkım senin adında,
+Mutluluk seninle hayatımda.`;
+
+const poemDiv = document.getElementById('poem');
+const container = document.getElementById('container');
+
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+async function typeText(text, element, delay = 50) {
+  element.textContent = '';
+  for (let i = 0; i < text.length; i++) {
+    element.textContent += text[i];
+    await sleep(delay);
+  }
+}
+
+// Kutular pozisyon ayarı fonksiyonu
+function placeBoxes() {
+  const poemBox = container.getBoundingClientRect();
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+
+  function setPosition(boxId, targetX, targetY) {
+    const box = document.getElementById(boxId);
+    box.style.left = `${targetX - 75}px`;
+    box.style.top = `${targetY - 75}px`;
+  }
+
+  setPosition('box-topleft', (poemBox.left) / 2, (poemBox.top) / 2);
+  setPosition('box-topright', (poemBox.right + width) / 2, (poemBox.top) / 2);
+  setPosition('box-bottomleft', (poemBox.left) / 2, (poemBox.bottom + height) / 2);
+  setPosition('box-bottomright', (poemBox.right + width) / 2, (poemBox.bottom + height) / 2);
+}
+
+// Kutulara tıklanınca konfeti efekti
+function createConfetti(x, y) {
+  for(let i = 0; i < 20; i++) {
+    const confetti = document.createElement('div');
+    confetti.classList.add('confetti');
+    confetti.textContent = "🤍";
+    confetti.style.left = x + 'px';
+    confetti.style.top = y + 'px';
+    const dx = (Math.random() - 0.5) * 400 + 'px';
+    const dy = (Math.random() - 0.5) * 400 + 'px';
+    confetti.style.setProperty('--x', dx);
+    confetti.style.setProperty('--y', dy);
+    document.body.appendChild(confetti);
+    setTimeout(() => confetti.remove(), 800);
+  }
+}
+
+document.querySelectorAll('.corner-box').forEach(box => {
+  box.addEventListener('click', (e) => {
+    const rect = box.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    createConfetti(x, y);
+    box.style.visibility = 'hidden';
+  });
+});
+
+// GEÇ butonuna basılınca yapılacaklar:
+skipButton.onclick = () => {
+  stopHearts();
+
+  // Şiir ve kutuları göster
+  container.style.display = "block";
+  document.querySelectorAll('.corner-box').forEach(box => {
+    box.style.visibility = "visible";
+  });
+  placeBoxes();
+
+  // Şiiri animasyonla yazdır
+  typeText(poemText, poemDiv, 50);
+};
+
+// Giriş butonu
+loginBtn.onclick = () => {
+  const val = passwordInput.value.trim();
+  error.innerText = "";
+  if(val === PASSWORD){
+    loginBox.style.display = "none";
+    startHearts();
+  } else {
+    error.innerText = "ŞİFRE YANLIŞ!";
+  }
+};
+
+passwordInput.addEventListener("keydown", e => {
+  if(e.key === "Enter") loginBtn.click();
+});
+
+// Pencere boyutu değişince kutuları yeniden yerleştir
+window.addEventListener('resize', () => {
+  if(container.style.display === "block") placeBoxes();
+});
+</script>
+
+</body>
+</html>
